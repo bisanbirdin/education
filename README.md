@@ -23,14 +23,15 @@
 + [Создание Maven проекта в IntelliJ IDEA](maven.md#Создание-maven-проекта-в-intelliJ-iDEA)
 + [Создание Maven проекта из архетипа](maven.md#Создание-maven-проекта-из-архетипа)
 + [Структура Maven](maven.md#Структура-maven)
-+ [Профиль сборки (build profile)](maven.md#Профиль-сборки-build-profile
++ [Профиль сборки (build profile)](maven.md#Профиль-сборки-build-profile)
+
 [К оглавлению Java](#java)
 
 ## Scala введение
 
 + [Введение](intro-scala.md#Введение)
-+ [Scala объектно-ориентированный](intro-scala.md##scala-объектно-ориентированный)
-+ [Scala функциональный](intro-scala.md#scala-функциональны)
++ [Scala объектно-ориентированный](intro-scala.md#scala-объектно-ориентированный)
++ [Scala функциональный](intro-scala.md#scala-функциональный)
 + [Статическая типизация](intro-scala.md#Статическая-типизация)
 + [Расширяемость](intro-scala.md#Расширяемость)
 + [Совместимость](intro-scala.md#Совместимость)
