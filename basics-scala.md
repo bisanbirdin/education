@@ -397,7 +397,7 @@ object Main {
 
 В Scala все значения имеют тип, включая числовые значения и функции.
 
-![img.png](img.png)
+![1.png](https://github.com/bisanbirdin/education/blob/157cd1742932f9c026c703abe51780e591ed83c3/pictures/1.png)
 
 + `Any` - супертип всех типов (верхний тип). Определяет универсальные методы: `equals`, `hashCode`, `toString`. Есть два прямых подкласса: `AnyVal` и `AnyRef`.
 + `AnyVal` - представляет числовые типы. Есть девять предварительно определенных числовых типов (не могут быть `null`): `Double`, `Float`, `Long`, `Int`, `Short`, `Byte`, `Char`, `Unit`, `Boolean`.
@@ -432,7 +432,7 @@ true
 
 Числовые типы приводятся следующим образом:
 
-![img_1.png](img_1.png)
+![2.png](https://github.com/bisanbirdin/education/blob/157cd1742932f9c026c703abe51780e591ed83c3/pictures/2.png)
 
 ```scala
 val x: Long = 987654321
