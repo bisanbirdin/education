@@ -3,12 +3,12 @@
 # Maven
 
 + [Введение](#Введение)
-+ [Жизненный цикл Maven (Maven lifecycle)](#Жизненный_цикл_maven_maven_lifecycle)
++ [Жизненный цикл Maven (Maven lifecycle)](#Жизненный-цикл-maven-maven-lifecycle)
 + [Установка Maven через командную строку](#Установка-maven-через-командную-строку)
 + [Создание Maven проекта в IntelliJ IDEA](#Создание-maven-проекта-в-intelliJ-iDEA)
 + [Создание Maven проекта из архетипа](#Создание-maven-проекта-из-архетипа)
 + [Структура Maven](#Структура-maven)
-+ [Профиль сборки (build profile)](#Профиль_сборки_build_profile)
++ [Профиль сборки (build profile)](#Профиль-сборки-build-profile)
 
 ## Введение
 
