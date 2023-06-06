@@ -21,6 +21,22 @@
 + [Регулярные выражения](#Регулярные-выражения)
 + [Объект экстрактор](#Объект-экстрактор)
 + [Сложные for выражения](#Сложные-for-выражения)
++ [Обобщенные классы](#Обобщенные-классы)
++ [Вариантность](#вариантность)
++ [Ограничение типа](#ограничение-типа)
++ [Внутренние классы](#внутренние-классы)
++ [Члены абстрактного типа](#члены-абстрактного-типа)
++ [Составные типы](#составные-типы)
++ [Самоописываемые типы](#самоописываемые-типы)
++ [Неявные параметры](#неявные-параметры)
++ [Неявные преобразования](#неявные-преобразования)
++ [Полиморфные методы](#полиморфные-методы)
++ [Выведение типа](#выведение-типа)
++ [Операторы](#операторы)
++ [Вызов по имени](#вызов-по-имени)
++ [Аннотации](#аннотации)
++ [Пакеты и импорт](#пакеты-и-импорт)
++ [Объекты пакета](#объекты-пакета)
 
 ## Выражения
 
@@ -1086,6 +1102,918 @@ foo(10, 10)
 
 [К оглавлению](#Основы)
 
+## Обобщенные классы
 
+__Обобщенные классы (Generic classes)__ - классы, обладающие параметрическим полиморфизмом (изменяют поведение в зависимости от типа, тип прописывается в `[]` после имени класса).
+
+_ОБЪЯВЛЕНИЕ ОБОБЩЕННОГО КЛАССА_
+
+Для объявления нужно после имени добавить тип в `[]`. Обычно используется `A`.
+
+```scala
+class Stack[A] {
+  private var elements: List[A] = Nil
+  def push(x: A): Unit = 
+    elements = x :: elements
+  def peek: A = elements.head
+  def pop(): A = {
+    val currentTop = peek
+    elements = elements.tail
+    currentTop
+  }
+}
+```
+
+Класс `Stack` принимает в качестве параметра любой тип `A` (список `List[A]` может хранить только элементы тиа `A`). Процедура `push` принимает объекты типа `A` (`elements = x :: elements` переназначает `elements` в новый список добавлением `x`).
+
+_ИСПОЛЬЗОВАНИЕ_
+
+Для использования нужно в `[]` поместить конкретный тип.
+
+```scala
+val stack = new Stack[Int]
+stack.push(1)
+stack.push(2)
+println(stack.pop) // 2
+println(stack.pop) // 1
+```
+
+Экземпляр `stack` может принимать только `Int` (если у типа есть подтипы - может использовать их).
+
+```scala
+class Fruit
+class Apple extends Fruit
+class Banana extends Fruit
+
+val stack = new Stack[Fruit]
+val apple = new Apple
+val banana = new Banana
+
+stack.push(apple)
+stack.push(banana)
+```
+
+[К оглавлению](#Основы)
+
+## Вариантность
+
+__Вариантность (Variances)__ - указание определенной специфики взаимосвязи между связанными типами. Scala поддерживает вариантную аннотацию типов у обобщенных классов, что позволяет им быть ковариантными, контрвариантными или инвариантными. Это позволяет устанавливать понятные взаимосвязи между сложными типами.
+
+```scala
+class Foo[+A]   // ковариантный
+class Foo[-A]   // контрвариантный
+class Foo[A]    // инвариантный
+```
+
+_КОВАРИАНТНОСТЬ_
+
+`List[+A]` подразумевает, что для двух типов `A` и `B`, где `A` подтип `B`, `List[A]` подтип `List[B]`.
+
+```scala
+abstract class Animal {
+  def name: String
+}
+case class Cat(name: String) extends Animal
+case class Dog(name: String) extends Animal
+```
+
+`Cat` и `Dog` подтипы `Animal`. Стандартная библиотека Scala имеет обобщенный неизменяемый тип `List[+A]`, это значит, что `List[Cat]` и `List[Dog]` - это `List[Animal]`.
+
+_КОНТРВАРИАНТНОСТЬ_
+
+Контрвариантность - противоположное ковариантности. Для класса `Writer[-A]` подразумевает, что для двух типов `A` и `B`, где `A` подтип `B`, `Writer[B]` подтип `Writer[A]`.
+
+```scala
+abstract class Printer[-A] {
+  def print(value: A): Unit
+}
+```
+
+`Printer[-A]` - класс, который знает как распечатать тип `A`.
+
+```scala
+class AnimalPrinter extends Printer[Animal] {
+  def print(animal: Animal): Unit =
+    println("The animal's name is: " + animal.name)
+}
+
+class CatPrinter extends Printer[Cat] {
+  def print(cat: Cat): Unit =
+    println("The cat's name is: " + cat.name)
+}
+```
+
+Если `Printer[Cat]` знает, как распечатать класс `Cat`, а `Printer[Animal]`, как распечатать `Animal`, разумно если он знает, как распечатать `Cat`. Чтобы `Printer[Cat]` знал, как распечатать `Animal`, его нужно сделать контрвариантным.
+
+```scala
+object ContravarianceTest extends App {
+  val myCat: Cat = Cat("Boots")
+
+  def printMyCat(printer: Printer[Cat]): Unit = {
+    printer.print(myCat)
+  }
+
+  val catPrinter: Printer[Cat] = new CatPrinter
+  val animalPrinter: Printer[Animal] = new AnimalPrinter
+
+  printMyCat(catPrinter)    // The cat's name is: Boots
+  printMyCat(animalPrinter) // The animal's name is: Boots
+} 
+```
+
+_ИНВАРИАНТНОСТЬ_
+
+Обобщенные классы в Scala по умолчанию инвариантные. Значит между `Cantainer[Cat]` и `Container[Animal]` нет прямой или обратной взаимосвязи.
+
+```scala
+class Container[A](value: A) {
+  private var _value: A = value
+  def getValue: A = _value
+  def setValue(value: A): Unit = {
+    _value = value
+  }
+}
+```
+
+Например, если бы `Container` был ковариантным, могло бы случиться:
+
+```scala
+val catContainer: Contaoner[Cat] = new Container(Cat("Felix"))
+val animalContainer: Container[Animal] = catContainer
+animalContainer.setValue(Dog("Spot"))
+val cat: Cat = catContainer.getValue // закончилось бы присвоением собаки к коту
+```
+
+[К оглавлению](#Основы)
+
+## Ограничение типа
+
+В Scala параметры типа и члены абстрактного типа могут быть ограничены определенными диапазонами. Они ограничивают конкретные значения типа и предоставляют больше информации о членах таких типов.
+
+_ВЕРХНЕЕ ОГРАНИЧЕНИЕ_
+
+__Верхнее ограничение типа__ `T <: A` указывает, что тип `T` относится к подтипу `A`.
+
+```scala
+abstract class Animal {
+  def name: String
+}
+
+abstract class Pet extends Animal {}
+
+class Cat extends Pet {
+  override def name: String = "Cat"
+}
+class Dog extends Pet {
+  override def name: String = "Dog"
+}
+class Lion extends Animal {
+  override def name: String = "Lion"
+}
+
+class PetContainer[P <: Pet](p: P) {
+  def pet: P = p
+}
+
+val dogContainer = new PetContainer[Dog](new Dog)
+val catContainer = new PetContainer[Cat](new Cat)
+val lionContainer = new PetContainer[Lion](new Lion) // не скомпилируется
+```
+
+Класс `PetContainer` принимает тип `P`, который должен быть подтипом `Pet`. `Dog` и `Cat` - подтипы, `Lion` - нет, возникнет ошибка: `type arguments [Lion] do not conform to class PetContainer's type parameter bounds [P <: Pet]`.
+
+_НИЖНЕЕ ОГРАНИЧЕНИЕ_
+
+__Нижнее ограничение__ - объявляют тип супертипа стороннего типа. `B >: A` - параметр типа `B` или абстрактный тип `B` относится к супертипу `A`. Обычно `A` будет задавать тип класса, а `B` - тип метода.
+
+```scala
+trait Node[+b] {
+  def prepend(elem: B): Node[B]
+}
+
+case class ListNode[+B](h: B, t: Node[B]) extends Node[B] {
+  def prepend(elem: B): ListNode[B] = ListNode(elem, this)
+  def head: B = h
+  def tail: Node[B] = t
+}
+
+case class Nil[+B]() extends Node[B] {
+  def prepend(elem: B): ListNode[B] = ListNode(elem, this)
+}
+```
+
+Здесь реализован связный список. `Nil` - пустой список. Класс `ListNode` - узел, который содержит элемент типа `B (head)` и ссылку на остальную часть списка `(tail)`. Класс `Node` и его подтипы ковариантны, т.к. `+B`. Но программа не скомпилируется, т.к. параметр `elem` в `prepend` имеет тип `B`, который объявлен ковариантным. Чтобы исправить, нужно перевернуть вариантность типа параметра `elem` в `prepend`. Для этого вводится новый тип для параметра `U`, у которого тип `B` указан в качестве нижней границы.
+
+```scala
+trait Node[+B] {
+  def prepend[U >: B](elem: U): Node[U]
+}
+
+case class ListNode[+B](h: B, t: Node[B]) extends Node[B] {
+  def prepend[U >: B](elem: U): ListNode[U] = ListNode(elem, this)
+  def head: B = h
+  def tail: Node[B] = t
+}
+
+case class Nil[+B]() extends Node[B] {
+  def prepend[U >: B](elem: U): ListNode[U] = ListNode(elem, this)
+}
+```
+
+Теперь возможно:
+
+```scala
+trait Bird
+case class AfricanSwallow() extends Bird
+case class EuropeanSwallow() extends Bird
+
+val africanSwallowList = ListNode[AfricanSwallow](AfricanSwallow(), Nil())
+val birdList: Node[Bird] = africanSwallowList
+birdList.prepend(EuropeanSwallow())
+```
+
+`Node[Bird]` может быть присвоен `africanSwallowList`, но затем может добавлять и `EuropeanSwallow`.
+
+[К оглавлению](#Основы)
+
+# Внутренние классы
+
+В Scala можно иметь в качестве членов другие классы. В отличие от Java-подобных языков, в Scala внутренние классы привязаны к содержащему его объекту. Например, нужно, чтобы компилятор не позволял на этапе компиляции смешивать узлы графа.
+
+```scala
+class Graph {
+  class Node {
+    var connectedNodes: List[Node] = Nil
+    def connectTo(node: Node): Unit = {
+      if (!connectedNodes.exists(node.equals)) {
+        connectedNodes = node :: connectedNodes
+      }
+    }
+  }
+  var nodes: List[Node] = Nil
+  def newNode: Node = {
+    val res = new Node
+    nodes = res :: nodes
+    res
+  }
+}
+```
+
+Это граф из списка узлов `List[Node]`. Каждый узел имеет список других узлов, с которым он связан `connectedNodes`. Класс `Node` зависим от месторасположения, т.к. вложен в `Class Graph`. Поэтому все узлы `connectedNodes` должны быть созданы с использованием `newNode` из одного и того же экземпляра `Graph`.
+
+```scala
+val graph1: Graph = new Graph
+val node1: graph1.Node = graph1.newNode
+val node2: graph1.Node = graph1.newNode
+val node3: graph1.Node = graph1.newNode
+node1.connectTo(node2)
+node3.connectTo(node1)
+```
+
+Типы `node1`, `node2`, `node3` объявлены как `graph1.Node`, т.к. при вызове `graph1.newNode` используется экземпляр `Node`.
+
+Если есть 2 графа, то не будет смешивания узлов, определенных в рамках одного графа, с узлами другого, т.к. у них разные типы.
+
+[К оглавлению](#Основы)
+
+## Члены абстрактного типа
+
+Абстрактные типы, такие как трейты и абстрактные классы, могут иметь члены абстрактного типа. Абстрактный - конкретный экземпляр определяет, каким будет тип.
+
+```scala
+trait Buffer {
+  type T
+  val element: T
+}
+```
+
+`T` - абстрактный тип, используется для описания типа члена `element`. Его можно расширить в абстрактном классе, добавив верхнюю границу тип `U`.
+
+```scala
+abstract class SeqBuffer extends Buffer {
+  type U
+  type T <: Seq[U]
+  def length = element.length
+}
+```
+
+Класс `SeqBuffer` позволяет хранить в буфере только последовательности, указывая, что тип `T` должен быть подтипом `Seq[U]`.
+
+Трейты или классы с абстрактными типами часто используются в сочетании с анонимными экземплярами классов. Пример, программа имеет дело с буфером, который ссылается на список целых чисел:
+
+```scala
+abstract class IntSeqBuffer extends SeqBuffer {
+  type U = Int
+}
+
+def newIntSeqBuf(elem1: Int, elem2: Int): IntSeqBuffer =
+  new IntSeqBuffer {
+       type T = List[U]
+       val element = List(elem1, elem2)
+     }
+val buf = newIntSeqBuf(7, 8)
+println("length = " + buf.length)
+println("content = " + buf.element)
+```
+
+Класс `newIntSeqBuf` создает экземпляры `IntSeqBuffer`, используя анонимную реализацию класса `IntSeqBuffer`, устанавливая тип `T` как `List[Int]`.
+
+Можно вывести тип класса из типа его членов и наоборот.
+
+```scala
+abstract class Buffer[+T] {
+  val element: T
+}
+abstract class SeqBuffer[U, +T <: Seq[U]] extends Buffer[T] {
+  def length = element.length
+}
+
+def newIntSeqBuf(e1: Int, e2: Int): SeqBuffer[Int, Seq[Int]] =
+  new SeqBuffer[Int, List[Int]] {
+    val element = List(e1, e2)
+  }
+
+val buf = newIntSeqBuf(7, 8)
+println("length = " + buf.length)
+println("content = " + buf.element)
+```
+
+Здесь нужно использовать вариантность в описании типа `+T <: Seq[U]` чтобы скрыть конкретный тип реализации списка, возвращаемого из метода `newIntSeqBuf`.
+
+[К оглавлению](#Основы)
+
+## Составные типы
+
+Иногда объект должен являться подтипом нескольких других типов. Это можно реализовать с помощью составных типов (объединение нескольких типов).
+
+Например, есть 2 трейта: `Cloneable` и `Resetable`.
+
+```scala
+trait Cloneable extends java.lang.Cloneable {
+  override def clone(): Cloneable = {
+    super.clone().asInstanceOf[Cloneable]
+  }
+}
+trait Resetable {
+  def reset: Unit
+}
+```
+
+Нужно написать функцию `cloneAndReset`, которая берет объект, клонирует его и сбрасывает (Reset) состояние исходного объекта.
+
+```scala
+def cloneAndReset(obj: Cloneable with Resetable): Cloneable = {
+  val cloned = obj.clone()
+  obj.reset
+  cloned
+}
+```
+
+Составные типы могут состоять из нескольких типов объектов, и они могут содержать единый доработанный объект.
+
+[К оглавлению](#Основы)
+
+## Самоописываемые типы
+
+__Самоописываемый тип (Self type)__ - способ объявить, что трейт должен быть смешан с другим трейтом, даже если он не расширяет его напрямую (доступ к членам зависимости без импортирования). Это способ сузить тип `this` или другого идентификатора, который ссылается на `this`. Для использования нужно написать: идентификатор, тип другого трейта и `=>` (напр., `someIdentifier: SomeOtherTrait =>`).
+
+```scala
+trait User {
+  def username: String
+}
+
+trait Tweeter {
+  this: User => // переназначение this
+  def tweet(tweetText: String) = println(s"$username: $tweetText")
+}
+
+class VerifiedTweeter(val username_ : String) extends Tweeter with User { // добавили User, т.к. требует Tweeter
+  def username: String = s"real $username_"
+}
+
+val realBeyonce = new VerifiedTweeter("Beyonce")
+realBeyonce.tweet("Just spilled my glass of lemonade")  // real Beyoncé: Just spilled my glass of lemonade
+```
+
+Т.к. указано `this: User =>` в трейте `Tweeter`, теперь переменная `username` в пределах видимости для метода `tweet`. Значит `VerifiedTweeter` при наследовании от `Tweeter` должен быть смешан с `User`.
+
+[К оглавлению](#Основы)
+
+## Неявные параметры
+
+В методе могут быть неявные параметры (ключевое слово `implicit` в начале списка параметров). Если параметры не передаются, Scala будет искать откуда взять автоматически. Scala будет искать:
+
++ поиск неявных параметров, доступ к которым напрямую (без префикса) в месте вызова метода, где запрошены параметры;
++ ищет члены, помеченные как `implicit` во всех объектах компаньонах, связанных с типом неявного параметра.
+
+Например, метод `sum` вычисляет сумму элементов списка, используя операции `add` и `unit` моноида.
+
+```scala
+abstract class Monoid[A] {
+  def add(x: A, y: A): A
+  def unit: A
+}
+
+object ImplicitTest {
+  implicit val stringMonoid: Monoid[String] = new Monoid[String] {
+    def add(x: String, y: String): String = x concat y
+    def unit: String = ""
+  }
+
+  implicit val intMonoid: Monoid[Int] = new Monoid[Int] {
+    def add(x: Int, y: Int): Int = x + y
+    def unit: Int = 0
+  }
+
+  def sum[A](xs: List[A])(implicit m: Monoid[A]): A =
+    if (xs.isEmpty) m.unit
+    else m.add(xs.head, sum(xs.tail))
+
+  def main(args: Array[String]): Unit = {
+    println(sum(List(1, 2, 3)))       // использует intMonoid неявно
+    println(sum(List("a", "b", "c"))) // использует stringMonoid неявно
+  }
+}
+```
+
+`Monoid` определяет операцию `add`, которая сочетает два элемента типа `A` и возвращает сумму типа `A`, операция `unit` возвращает отдельный элемент типа `A`. Моноиды `stringMonoid` и `intMonoid` объявлены с ключевым словом `implicit` (могут использоваться неявно).
+
+Метод `sum` принимает `List[A]` и возвращает `A`, который берет начальное `A` из `unit` и объединяет их в списке используя `add`. Параметр `m` в качестве неявного параметра подразумевает, что `xs` параметр будет обеспечен тогда, когда при вызове параметра метода Scala сможет найти неявный `Monoid[A]` чтоб его передать в качестве параметра `m`.
+
+[К оглавлению](#Основы)
+
+## Неявные преобразования
+
+Неявное преобразование типа `S` к типу `T` задается неявным значением функционального типа `S => T` или методом, который способен преобразовывать.
+
+Применяется в двух случаях:
+
++ если выражение `e` типа `S` не подходит под ожидаемый тип `T`;
++ если выбирая член `e.m`, где `e` представитель типа `S`, имя `m` не найдено среди доступных селекторов принадлежащих типу `S`.
+
+В первом случае выполняется поиск приведения `c`, которое применимо к `e`, чтобы тип результата стал `T`. Во втором случае выполняется поиск преобразования `c`, которое применимо к `e` и результат которого содержал бы член с именем `m`.
+
+Если неявный метод `List[A] => Ordered[List[A]]` находится в области видимости как и неявный метод `Int => Ordered[Int]`, то следующая операция с двумя списками типа `List[Int] допустима: `List(1, 2, 3) <= List(4, 5)`.
+
+Неявный метод `Int => Ordered[Int]` предоставляется через `scala.Predef.intWrapper`. Пример объявления метода:
+
+```scala
+import scala.language.implicitConversions
+
+implicit def list2ordered[A](x: List[A])
+    (implicit elem2ordered: A => Ordered[A]): Ordered[List[A]] =
+  new Ordered[List[A]] {
+    // заменить на полезную реализацию
+    def compare(that: List[A]): Int = 1
+  }
+```
+
+Неявно импортируемый `scala.Predef` объявляет ряд псевдонимов для часто используемых типов (напр., `Map`, `assert`), и делает доступным серию неявных преобразований.
+
+Напр., при вызове Java метода который ожидает `java.lang.Integer`, вместо него можно использовать `scala.Int`, т.к. Predef включает в себя:
+
+```scala
+import scala.language.implicitConversions
+
+implicit def int2Integer(x: Int) =
+  jeve.lang.Integer.valueOf(x)
+```
+
+При компиляции предупреждаются обнаружения неявных преобразований. Можно отключить предупреждения:
+
++ импортировать `scala.language.implicitConversions` в области видимости, где объявлены неявные преобразования;
++ вызвать компилятор с ключом `-language:implicitConversions`.
+
+[К оглавлению](#Основы)
+
+## Полиморфные методы
+
+У методов есть полиморфизм по типу (параметр типа указывается в `[]` после имени метода).
+
+```scala
+def listOfDuplicates[A](x: A, length: Int): List[A] = {
+  if (length < 1)
+    Nil
+  else
+    x :: listOfDuplicates(x, length - 1)
+}
+println(listOfDuplicates[Int](3, 4))  // List(3, 3, 3, 3)
+println(listOfDuplicates("La", 8))    // List(La, La, La, La, La, La, La, La)
+```
+
+Метод `listOfDUplicates` принимает параметр типа `A` и параметры значений `x` и `length`. Значение `x` имеет тип `A`. Если `length < 1` - возвращается пустой список, если нет - добавляется `x` к списку (`::` - добавление элемента слева к списку справа).
+
+[К оглавлению](#Основы)
+
+## Выведение типа
+
+Компилятор Scala часто может вывести тип выражения без явного указания.
+
+_НЕ УКАЗЫВАЯ ТИП_
+
+```scala
+val businessName = "Jazz Cafe"
+```
+
+Компилятор может определить, что тип константы `String`. Аналогично работает и для методов:
+
+```scala
+def squareOf(x: Int) = x * x
+```
+
+Компилятор может определить, что возвращаемый тип `Int`.
+
+Для рекурсивных методов компилятор не может вывести тип. Программа, которая не скомпилируется:
+
+```scala
+def fac(n: Int) = if (n == 0) 1 else n * fac(n-1)
+```
+
+При вызове полиморфных методов и обобщенных классов нужно указывать параметры типа при вызове. Пример:
+
+```scala
+case class MyPair[A, B](x: A, y: B)
+val p = MyPair(1, "scala") // mun: MyPair[Int, String]
+
+def id[T](x: T) = x
+val q = id(1) // mun: Int
+```
+
+_ПАРАМЕТРЫ_
+
+Для параметров компилятор никогда не выводит тип. Но иногда может вывести тип для параметра анонимной функции при передаче ее в качестве аргумента.
+
+```scala
+Seq(1, 2, 3).map(x => x * 2) // List(2, 6, 8)
+```
+
+У `map` параметр `f: A => B` (функциональный параметр, перводит тип из А в В). Т.к. в последовательности целые числа, компилятор знает, что `A` - `Int`.
+
+_КОГДА НЕ СЛЕДУЕТ ПОЛОГАТЬСЯ НА ВЫВЕДЕНИЕ ТИПА_
+
+Лучше объявить тип, если члены публичные или слишком специфичный тип.
+
+[К оглавлению](#Основы)
+
+## Операторы
+
+В Scala оператор - обычный метод. _Инфиксный оператор_ - любой метод с одним параметром. Напр., `+` может вызываться с использованием точки:
+
+`10.+(1)`
+
+Но легче код воспринимать так:
+
+`10 + 1`
+
+_СОЗДАНИЕ И ИСПОЛЬЗОВАНИЕ ОПЕРАТОРОВ_
+
+В качестве оператора можно использовать любой допустимый символ (включая имена вроде `add` или символ типа `+`).
+
+```scala
+case class Vec(x: Double, y: Double) {
+  def +(that: Vec) = Vec(this.x + that.x, this.y + that.y)
+}
+
+val vector1 = Vec(1.0, 1.0)
+val vector2 = Vec(2.0, 2.0)
+
+val vector3 = vector1 + vector2
+vector3.x // 3
+vector3.y // 3
+```
+
+У класса Vec есть метод `+`. Используя `()`, можно строить сложные выражения с читаемым синтаксисом. Пример класса `MyBool` с методами `and` и `or`:
+
+```scala
+case class MyBool(x: Boolean) {
+  def and(that: MyBool): MyBool = if (x) that else this
+  def or(that: MyBool): MyBool = if (x) this else that
+  def negate: MyBool = MyBool(!x)
+}
+```
+
+Можно использовать операторы `and` и `or` как инфиксные:
+
+```scala
+def not(x: MyBool) = x.negate
+def xor(x: MyBool, y: MyBool) = (x or y) and not(x and y)
+```
+
+_ПОРЯДОК ОЧЕРЕДНОСТИ_
+
+Если в выражении несколько операторов, оценивается приоритетность. Таблица приоритетности:
+
+```
+(символы, которых нет снизу)
+* / %
++ -
+:
+= !
+< >
+&
+|
+(буквы, $, _)
+```
+
+Например:
+
+`a + b ^? c ?^ d less a ==> b | c` эквивалентно
+
+`((a + b) ^? (c ?^ d)) less ((a ==> b) | c)`
+
+`?^` имеет высший приоритет, т.к. начинается с `?`, далее `+`, за которым следуют `==>`, `^?`, `|` и `less`.
+
+[К оглавлению](#Основы)
+
+## Вызов по имени
+
+__Вызов параметров по имени__ - это когда значение параметра вычисляется только в момент вызова параметра. Он противоположен _вызову по значению_. Преимущество в том, что они не вычисляются, если не используются в теле функции. Плюс же вызова по значению - вычисляется только 1 раз. Для вызова по имени нужно перед типом указать `=>`.
+
+```scala
+def calculate(input: => Int) = input * 37
+```
+
+Пример реализации условного цикла:
+
+```scala
+def whileLoop(condition: => Boolean)(body: => Unit): Unit =
+  if (condition) {
+    body
+    whileLoop(condition)(body)
+  }
+
+var i = 2
+
+whileLoop(i > 0) {
+  println(i)
+  i -= 1
+} // вывод: 2 1
+```
+
+Метод `whileLoop` использует несколько списков параметров: условие и тело. Если `condition == true`, выполняется `body` и затем рекурсивный вызов `whileLoop`, если `condition == false`, `body` не вычисляется, т.к. перед типом `body` стоит `=>`.
+
+При передаче условия `i > 0` и тела `println(i); i-=1`, код ведет себя как обычный цикл в большинстве я.п.
+
+[К оглавлению](#Основы)
+
+## Аннотации
+
+Аннотации нужны для передачи метаданных при объявлении. Напр., аннотация `@deprecated` перед методом - заставит компилятор вывести предупреждение, если метод будет использован.
+
+```scala
+object DeprecationDemo extends App {
+  @deprecated("deprecation message", "release # which deprecates method")
+  def hello = "hola"
+  
+  hello
+}
+```
+
+Код скомпилируется с предупреждением "there was one deprecation warning".
+
+_АННОТАЦИ ДЛЯ КОРРЕКТНОСТИ РАБОТЫ КОДА_
+
+Некоторые аннотации приводят к невозможности компиляции, если условие не выполняется. Напр., аннотация `@tailrec` гарантирует, что метод - хвостовая рекурсия (любой рекурсивный вызов - последняя операция перед возвратом функции). Это помогает держать потребление памяти на постоянном уровне. Пример вычисления факториала:
+
+```scala
+import scala.annotation.tailrec
+
+def factorial(x: Int): Int = {
+
+  @tailrec
+  def factorialHelper(x: Int, accumulator: Int): Int = {
+    if (x == 1) accumulator else factorialHelper(x - 1, accumulator * x)
+  }
+  factorialHelper(x, 1)
+}
+```
+
+Метод `factorialHelper` имеет аннотацию `tailrec`. Если бы реализация `factorialHelper` была такой, компилятор бы провалился:
+
+```scala
+import scala.annotation.tailrec
+
+def factorial(x: Int): Int = {
+  @tailrec
+  def factorialHelper(x: Int): Int = {
+    if (x == 1) 1 else x * factorialHelper(x - 1)
+  }
+  factorialHelper(x)
+}
+```
+
+Было бы выведено "Recursive call not in tail position" (Рекурсивный вызов не в хвостовой позиции).
+
+_АННОТАЦИИ, ВЛИЯЮЩИЕ НА ГЕНЕРАЦИЮ КОДА_
+
+Аннотации типа `@inline` влияют на сгенерированный код (код jar-файла может отличаться). Эта аннотация означает вставку всего кода в тело метода вместо вызова. Полученный байт-код длиннее, но должен работать быстрее.
+
+_Java АННОТАЦИИ_
+
+__Примечание:__ Нужно использовать опцию `-target:jvm-1.8` с аннотациями Java.
+
+Аннотации в Java используются как пара ключ-значение. Например:
+
+```java
+@interface Source {
+    public String URL();
+    public String mail();
+}
+
+@Source(URL = "https://coders/com",
+        mail = "support@coders.com")
+public class MyClass extends HisClass ...
+```
+
+Использование аннотации в Scala похоже на вызов конструктора. Для создания экземпляра из Java аннотации необходимо использовать именованные аргументы:
+
+```scala
+@Source(URL = "https://coders.com/",
+        mail = "support@coders.com")
+class MyScalaClass ...
+```
+
+Это перегруженный синтаксис (если аннотация содержит 1 элемент без значения по умолчанию). Если имя указано как `value`, его можно применить так:
+
+```java
+@interface SourceURL {
+    public String value();
+    public String mail() default "";
+}
+
+@SourceURL("https://coders.com/")
+public class MyClass extends HisClass ...
+```
+
+В Scala так же:
+
+```scala
+@SourceURL("https://coders.com/")
+class MyScalaClass ...
+```
+
+Элемент `mail` указан со значением по умолчанию, его не нужно указывать явно. В Java нельзя смешивать эти два стиля:
+
+```java
+@SourceURL(value = "https://coders.com/",
+           mail = "support@coders.com")
+public class MyClass extends HisClass ...
+```
+
+В Scala можно:
+
+```scala
+@SourceURL("https://coders.com/",
+           mail = "support@coders.com")
+    class MyScalaClass ...
+```
+
+[К оглавлению](#Основы)
+
+## Пакеты и импорт
+
+Scala использует пакеты для указания пространства имен (модульная структура кода).
+
+_СОЗДАНИЕ ПАКЕТА_
+
+Пакет создается путем объявления одного или нескольких имен пакетов в верхней части файла Scala.
+
+```scala
+package users
+
+class User
+```
+
+Пакеты имеют те же имена, что и каталог, содержащий файл Scala. Scala не обращает внимание на расположение файлов. Структура каталогов для sbt-проекта для `package users` может выглядеть так:
+
+```
+- ExampleProject
+  - build.sbt
+  - project
+  - src
+    - main
+      - scala
+        - users
+          User.scala
+          UserProfile.scala
+          UserPreferences.scala
+    - test
+```
+
+Каталог `users` внутри каталога `scala`, а в пакете несколько файлов Scala. Каждый файл Scala может иметь одно и то же объявление пакета. Другой способ объявления пакетов - `{}`.
+
+```scala
+package users {
+  package administrators {
+    class NormalUser
+  }
+  package normapusers {
+    class NormalUser
+  }
+}
+```
+
+Можно вкладывать пакеты друг в друга (контроль области видимости и возможность изоляции).
+
+Имя пакета - в нижнем регистре. Если код для организации с сайтом, обычно такой формат: `<домен-верхнего-уровня>.<доменное-имя>.<название-проекта>`. Напр., у Google есть проект SelfDrivingCar:
+
+```scala
+package com.google.selfdrivingcar.camera
+
+class Lens
+```
+
+Это соответствует структуре каталога:
+
+`SelfDrivingCar/src/main/scala/com/google/selfdrivingcar/camera/Lens.scala`.
+
+_ИМПОРТ_
+
+Указание `import` открывает доступ к членам класса в других пакетах. Виды `import`:
+
+```scala
+import users._  // групповой импорт всего пакета users
+import users.User  // импортировать только User
+import users.{User, UserPreferences}  // импортировать только User, UserPreferences
+import users.{UserPreferences => UPrefs}  // импортировать и переименовать
+```
+
+Импорт можно использовать где угодно:
+
+```scala
+def sqrtplus1(x: Int) = {
+  import scala.math.sqrt
+  sqrt(x) + 1.0
+}
+```
+
+Если происходит конфликт имен и нужно импортировать что-либо из корня проекта, имя пакета должно начинаться с префикса `_root_`:
+
+```scala
+package accounts
+
+import _root_.users._
+```
+
+Пакеты `scala`, `java.lang` и `object Predef` импортируются по умолчанию.
+
+[К оглавлению](#Основы)
+
+## Объекты пакета
+
+У каждого пакета может существовать связанный с этим пакетом объект (package object), общий для всех членов пакета. Выражения в объекте пакета - члены самого пакета.
+
+Объекты пакета могут содержать произвольные выражения. Могут наследоваться от классов и трейтов. Обычно код объекта пакета помещается в файл `package.scala`.
+
+Например, есть старший класс `Fruit` и три наследуемых от него объекта в пакете.
+
+`gardering.fruits`
+
+```scala
+// в файле gardering/fruits/Fruit.scala
+package gardering.fruits
+
+case class Fruit(name: String, color:String)
+object Apple extends Fruit("Apple", "green")
+object Plum extends Fruit("Plum", "blue")
+object Banana extends Fruit("Banana", "yellow")
+```
+
+Нужно поместить переменную `planted` и метод `showFruit` непосредственно в пакет `gardering`.
+
+```scala
+// в файле gardening/fruits/package.scala
+package gardening
+package object fruits {
+  val planted = List(Apple, Plum, Banana)
+  def showFruit(fruit: Fruit): Unit = {
+    println(s"${fruit.name}s are ${fruit.color}")
+  }
+}
+```
+
+Объект `PrintPlanted` импортирует `planted` и `showFruit` так же как и импорт `Fruit`, используя групповой стиль импорта пакета `gardering.fruits`:
+
+```scala
+// в файле PrintPlanted.scala
+import gardening.fruits._
+object PrintPlanted {
+  def main(args: Array[String]): Unit = {
+    for (fruit <- planted) {
+      showFruit(fruit)
+    }
+  }
+}
+```
+
+Объекты пакета ведут себя как другие объекты, значит можно использовать наследование нескольких трейтов:
+
+```scala
+package object fruits extends FruitAliases with FruitHelpers {
+  // здесь располагаются вспомогательные классы и переменные
+}
+```
+
+[К оглавлению](#Основы)
 
 [Learning Scala](README.md#scala)
